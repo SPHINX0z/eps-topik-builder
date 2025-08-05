@@ -1,185 +1,87 @@
 <!DOCTYPE html><html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>📱 EPS-TOPIK Builder</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EPS-TOPIK Builder</title>
+  <script type="module" src="./eps-topik-builder.js"></script>
   <style>
-    body { font-family: sans-serif; padding: 1rem; background: #f4f4f4; }
-    .card { background: white; padding: 1rem; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); margin-bottom: 1rem; }
-    input, textarea { width: 100%; padding: 8px; margin: 4px 0; border-radius: 4px; border: 1px solid #ccc; }
-    button { padding: 10px 16px; margin: 4px 2px; border: none; border-radius: 4px; cursor: pointer; }
-    .btn-primary { background: #007bff; color: white; }
-    .btn-green { background: #28a745; color: white; }
-    .btn-gray { background: #6c757d; color: white; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 5px; margin-top: 1rem; }
-    .grid button { font-weight: bold; }
+    body { font-family: sans-serif; padding: 1rem; background: #f2f2f2; }
+    .soal-card { background: white; padding: 1rem; margin-bottom: 1rem; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    input[type="text"] { width: 100%; margin-bottom: 0.5rem; }
+    .preview-img { max-width: 100%; margin-top: 0.5rem; border: 1px solid #ccc; }
+    .audio-preview { width: 100%; margin-top: 0.5rem; }
   </style>
 </head>
-<body>  <div class="card">
-    <h2>📱 EPS-TOPIK Builder</h2>
-    <p><b>📄 Upload PDF Soal</b></p>
-    <input type="file" id="uploadPdf" accept="application/pdf"/>
-  </div>  <div class="card">
-    <button class="btn-gray" onclick="prevSoal()">⬅️ Kembali</button>
-    <button class="btn-primary" onclick="nextSoal()">Berikutnya ➡️</button><input type="text" id="nomor" placeholder="Nomor Soal" disabled />
-<textarea id="pertanyaan" placeholder="Pertanyaan"></textarea>
-<input type="text" id="pilihan1" placeholder="Pilihan 1" />
-<input type="text" id="pilihan2" placeholder="Pilihan 2" />
-<input type="text" id="pilihan3" placeholder="Pilihan 3" />
-<input type="text" id="pilihan4" placeholder="Pilihan 4" />
-<button class="btn-green" onclick="simpanSoal()">➕ Simpan Soal</button>
+<body>
+  <h1>📘 EPS-TOPIK Builder</h1>  <p>📄 Upload gambar soal per nomor:</p>
+  <input type="file" id="uploadGambar" multiple accept="image/*" /><br /><br />  <p>🔊 Upload audio gabungan (21-40):</p>
+  <input type="file" id="uploadAudioGabungan" accept="audio/*" /><br />
+  <label>Dari soal:</label>
+  <input type="number" id="audioStart" min="1" style="width:60px;" />
+  <label>Sampai:</label>
+  <input type="number" id="audioEnd" min="1" style="width:60px;" /><br /><br />  <div id="soalContainer"></div><button id="saveSupabase">💾 Simpan ke Supabase</button> <button id="exportJson">📦 Ekspor JSON</button>
 
-  </div>  <div class="card">
-    <h3>🗂️ Daftar Soal</h3>
-    <div class="grid" id="gridSoal"></div>
-    <button class="btn-primary" onclick="downloadJSON()">⬇️ Ekspor JSON</button>
-  </div>  <script>
-    let soalList = [];
-    let currentIdx = 0;
+  <script type="module">
+    import { uploadAudioGabungan, supabase, simpanSoalToDatabase } from './eps-topik-builder.js';
 
-    document.getElementById('uploadPdf').addEventListener('change', function (e) {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
+    const soalList = [];
+    const soalContainer = document.getElementById('soalContainer');
 
-      reader.onload = async function () {
-        const typedarray = new Uint8Array(reader.result);
-        const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
-
-        let fullText = "";
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const content = await page.getTextContent();
-          const strings = content.items.map(item => item.str);
-          fullText += strings.join(' ') + '\n';
-        }
-
-        soalList = parseTextToSoal(fullText);
-        currentIdx = 0;
-        tampilkanSoal();
-        tampilkanGrid();
-        alert("✅ Soal berhasil diambil dari PDF: " + soalList.length + " soal");
-      };
-      reader.readAsArrayBuffer(file);
-    });
-
-    function parseTextToSoal(text) {
-      const lines = text.split('\n');
-      const soal = [];
-      let current = null;
-      let nomor = 1;
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (/^\d+\./.test(trimmed)) {
-          if (current) soal.push(current);
-          current = { nomor: nomor++, pertanyaan: trimmed.replace(/^\d+\.\s*/, ''), opsi: [] };
-        } else if (/^[1-4][\)|\.]/.test(trimmed)) {
-          current?.opsi.push(trimmed.replace(/^[1-4][\)|\.]\s*/, ''));
-        }
-      }
-      if (current) soal.push(current);
-      return soal;
-    }
-
-    function tampilkanSoal() {
-      const s = soalList[currentIdx];
-      if (!s) return;
-      document.getElementById("nomor").value = s.nomor || currentIdx + 1;
-      document.getElementById("pertanyaan").value = s.pertanyaan || '';
-      document.getElementById("pilihan1").value = s.opsi?.[0] || '';
-      document.getElementById("pilihan2").value = s.opsi?.[1] || '';
-      document.getElementById("pilihan3").value = s.opsi?.[2] || '';
-      document.getElementById("pilihan4").value = s.opsi?.[3] || '';
-    }
-
-    function simpanSoal() {
-      soalList[currentIdx] = {
-        nomor: parseInt(document.getElementById("nomor").value),
-        pertanyaan: document.getElementById("pertanyaan").value,
-        opsi: [
-          document.getElementById("pilihan1").value,
-          document.getElementById("pilihan2").value,
-          document.getElementById("pilihan3").value,
-          document.getElementById("pilihan4").value,
-        ]
-      };
-      tampilkanGrid();
-    }
-
-    function tampilkanGrid() {
-      const container = document.getElementById("gridSoal");
-      container.innerHTML = '';
-      soalList.forEach((s, i) => {
-        const btn = document.createElement('button');
-        btn.textContent = s.nomor;
-        btn.style.background = i === currentIdx ? '#007bff' : '#ccc';
-        btn.onclick = () => { currentIdx = i; tampilkanSoal(); tampilkanGrid(); };
-        container.appendChild(btn);
+    document.getElementById('uploadGambar').addEventListener('change', (e) => {
+      const files = Array.from(e.target.files).sort();
+      soalList.length = 0;
+      files.forEach((file, i) => {
+        const nomor = i + 1;
+        const soal = { nomor, gambar: '', pertanyaan: '', opsi: ['', '', '', ''] };
+        const reader = new FileReader();
+        reader.onload = () => {
+          soal.gambar = reader.result;
+          renderSoalCard(soal);
+        };
+        reader.readAsDataURL(file);
+        soalList.push(soal);
       });
-    }
-
-    function nextSoal() {
-      simpanSoal();
-      if (currentIdx < soalList.length - 1) {
-        currentIdx++;
-        tampilkanSoal();
-        tampilkanGrid();
-      }
-    }
-
-    function prevSoal() {
-      simpanSoal();
-      if (currentIdx > 0) {
-        currentIdx--;
-        tampilkanSoal();
-        tampilkanGrid();
-      }
-    }
-
-    function downloadJSON() {
-      const jsonStr = JSON.stringify(soalList, null, 2);
-      const blob = new Blob([jsonStr], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "soal.json";
-      a.click();
-    }
-  </script></body>
-</html>      document.getElementById("opsi1").value = s.opsi?.[0] || "";
-      document.getElementById("opsi2").value = s.opsi?.[1] || "";
-      document.getElementById("opsi3").value = s.opsi?.[2] || "";
-      document.getElementById("opsi4").value = s.opsi?.[3] || "";
-    }
-
-    document.getElementById("pdfInput").addEventListener("change", function (e) {
-      const file = e.target.files[0];
-      if (file.type !== "application/pdf") return;
-
-      const pdfPreview = document.getElementById("pdfPreview");
-      pdfPreview.innerHTML = "Loading PDF...";
-
-      const reader = new FileReader();
-      reader.onload = function () {
-        const typedarray = new Uint8Array(reader.result);
-        pdfjsLib.getDocument(typedarray).promise.then(function (pdf) {
-          pdfPreview.innerHTML = "";
-          for (let i = 1; i <= pdf.numPages; i++) {
-            pdf.getPage(i).then(function (page) {
-              const viewport = page.getViewport({ scale: 1.2 });
-              const canvas = document.createElement("canvas");
-              const context = canvas.getContext("2d");
-              canvas.height = viewport.height;
-              canvas.width = viewport.width;
-              pdfPreview.appendChild(canvas);
-              page.render({ canvasContext: context, viewport: viewport });
-            });
-          }
-        });
-      };
-      reader.readAsArrayBuffer(file);
     });
-  </script>
-</body>
+
+    document.getElementById('uploadAudioGabungan').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      const start = parseInt(document.getElementById('audioStart').value);
+      const end = parseInt(document.getElementById('audioEnd').value);
+      if (!file || isNaN(start) || isNaN(end)) return alert('Lengkapi data rentang soal.');
+      const url = await uploadAudioGabungan(file);
+      for (let i = start; i <= end; i++) {
+        const soal = soalList.find(s => s.nomor === i);
+        if (soal) soal.audio_gabungan = url;
+      }
+      alert('✅ Audio gabungan ditautkan ke soal!');
+    });
+
+    function renderSoalCard(soal) {
+      const card = document.createElement('div');
+      card.className = 'soal-card';
+      card.innerHTML = `<h3>Soal ${soal.nomor}</h3>
+        <img src="${soal.gambar}" class="preview-img" alt="soal-${soal.nomor}" />
+        <input type="text" placeholder="Opsi 1" value="${soal.opsi[0]}"><br>
+        <input type="text" placeholder="Opsi 2" value="${soal.opsi[1]}"><br>
+        <input type="text" placeholder="Opsi 3" value="${soal.opsi[2]}"><br>
+        <input type="text" placeholder="Opsi 4" value="${soal.opsi[3]}"><br>`;
+      const inputs = card.querySelectorAll('input');
+      inputs.forEach((inp, idx) => {
+        inp.oninput = () => soal.opsi[idx] = inp.value;
+      });
+      soalContainer.appendChild(card);
+    }
+
+    document.getElementById('saveSupabase').onclick = () => {
+      simpanSoalToDatabase(soalList);
+    };
+
+    document.getElementById('exportJson').onclick = () => {
+      const blob = new Blob([JSON.stringify(soalList, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'soal.json';
+      a.click();
+    };
+  </script></body>
 </html>
