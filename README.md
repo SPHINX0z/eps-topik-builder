@@ -26,16 +26,12 @@ Aplikasi pembuat soal EPS-TOPIK berbasis web, bisa digunakan online maupun offli
   "gambar": "url_gambar_opsional",
   "audio": "url_audio_opsional"
 }
+```
 
 ## 📦 Teknologi:
-
-HTML + Tailwind CSS
-
-JavaScript + Supabase
-
-PDF.js untuk parsing PDF
-
----
+- HTML + Tailwind CSS
+- JavaScript + Supabase
+- PDF.js untuk parsing PDF
 
 ## 🔄 Langkah Berikutnya
 1. Update `index.html` → paste seluruh kode final yang saya kirim sebelumnya
