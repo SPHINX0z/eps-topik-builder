@@ -1,113 +1,153 @@
-<!DOCTYPE html>
-<html lang="id">
+<!DOCTYPE html><html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EPS-TOPIK Builder</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>📱 EPS-TOPIK Builder</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
   <style>
-    body {
-      font-family: 'Helvetica', sans-serif;
-    }
-    .pdf-viewer {
-      max-height: 300px;
-      overflow-y: auto;
-      border: 1px solid #ddd;
-      margin-bottom: 10px;
-    }
+    body { font-family: sans-serif; padding: 1rem; background: #f4f4f4; }
+    .card { background: white; padding: 1rem; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); margin-bottom: 1rem; }
+    input, textarea { width: 100%; padding: 8px; margin: 4px 0; border-radius: 4px; border: 1px solid #ccc; }
+    button { padding: 10px 16px; margin: 4px 2px; border: none; border-radius: 4px; cursor: pointer; }
+    .btn-primary { background: #007bff; color: white; }
+    .btn-green { background: #28a745; color: white; }
+    .btn-gray { background: #6c757d; color: white; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 5px; margin-top: 1rem; }
+    .grid button { font-weight: bold; }
   </style>
 </head>
-<body class="bg-gray-100">
-  <div class="max-w-md mx-auto p-4 bg-white shadow rounded-lg mt-6">
-    <h1 class="text-xl font-bold text-center mb-4">📲 EPS-TOPIK Builder</h1>
+<body>  <div class="card">
+    <h2>📱 EPS-TOPIK Builder</h2>
+    <p><b>📄 Upload PDF Soal</b></p>
+    <input type="file" id="uploadPdf" accept="application/pdf"/>
+  </div>  <div class="card">
+    <button class="btn-gray" onclick="prevSoal()">⬅️ Kembali</button>
+    <button class="btn-primary" onclick="nextSoal()">Berikutnya ➡️</button><input type="text" id="nomor" placeholder="Nomor Soal" disabled />
+<textarea id="pertanyaan" placeholder="Pertanyaan"></textarea>
+<input type="text" id="pilihan1" placeholder="Pilihan 1" />
+<input type="text" id="pilihan2" placeholder="Pilihan 2" />
+<input type="text" id="pilihan3" placeholder="Pilihan 3" />
+<input type="text" id="pilihan4" placeholder="Pilihan 4" />
+<button class="btn-green" onclick="simpanSoal()">➕ Simpan Soal</button>
 
-    <!-- Upload PDF -->
-    <label class="block text-sm font-medium text-gray-700">📄 Upload PDF Soal</label>
-    <input type="file" id="pdfInput" accept="application/pdf" class="mb-4">
+  </div>  <div class="card">
+    <h3>🗂️ Daftar Soal</h3>
+    <div class="grid" id="gridSoal"></div>
+    <button class="btn-primary" onclick="downloadJSON()">⬇️ Ekspor JSON</button>
+  </div>  <script>
+    let soalList = [];
+    let currentIdx = 0;
 
-    <!-- Preview PDF -->
-    <div class="pdf-viewer" id="pdfPreview"></div>
+    document.getElementById('uploadPdf').addEventListener('change', function (e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
 
-    <!-- Navigasi Soal -->
-    <div class="flex justify-between my-4">
-      <button id="prevBtn" class="bg-gray-200 px-4 py-2 rounded">⬅️ Kembali</button>
-      <button id="nextBtn" class="bg-blue-500 text-white px-4 py-2 rounded">Berikutnya ➡️</button>
-    </div>
+      reader.onload = async function () {
+        const typedarray = new Uint8Array(reader.result);
+        const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
 
-    <!-- Soal Form -->
-    <form id="soalForm" class="space-y-2">
-      <input type="number" id="nomor" placeholder="Nomor Soal" class="w-full border p-2 rounded">
-      <textarea id="pertanyaan" placeholder="Pertanyaan" class="w-full border p-2 rounded"></textarea>
-      <input type="text" id="opsi1" placeholder="Pilihan A" class="w-full border p-2 rounded">
-      <input type="text" id="opsi2" placeholder="Pilihan B" class="w-full border p-2 rounded">
-      <input type="text" id="opsi3" placeholder="Pilihan C" class="w-full border p-2 rounded">
-      <input type="text" id="opsi4" placeholder="Pilihan D" class="w-full border p-2 rounded">
-      <button type="submit" class="bg-green-500 text-white w-full py-2 rounded">➕ Simpan Soal</button>
-    </form>
+        let fullText = "";
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          const strings = content.items.map(item => item.str);
+          fullText += strings.join(' ') + '\n';
+        }
 
-    <!-- Grid Daftar Soal -->
-    <h2 class="text-lg mt-6 font-semibold">📋 Daftar Soal</h2>
-    <div id="gridSoal" class="grid grid-cols-5 gap-2 mt-2"></div>
-  </div>
+        soalList = parseTextToSoal(fullText);
+        currentIdx = 0;
+        tampilkanSoal();
+        tampilkanGrid();
+        alert("✅ Soal berhasil diambil dari PDF: " + soalList.length + " soal");
+      };
+      reader.readAsArrayBuffer(file);
+    });
 
-  <script>
-    const SUPABASE_URL = "https://eaiypixnjiwqkxaovgmn.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVhaXlwaXhuaml3cWt4YW92Z21uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzODkwNzIsImV4cCI6MjA2OTk2NTA3Mn0.9QexOt0Uunv_n3KFBW5RKTBr9dJTSq8k84gBk1WUr2w";
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    function parseTextToSoal(text) {
+      const lines = text.split('\n');
+      const soal = [];
+      let current = null;
+      let nomor = 1;
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (/^\d+\./.test(trimmed)) {
+          if (current) soal.push(current);
+          current = { nomor: nomor++, pertanyaan: trimmed.replace(/^\d+\.\s*/, ''), opsi: [] };
+        } else if (/^[1-4][\)|\.]/.test(trimmed)) {
+          current?.opsi.push(trimmed.replace(/^[1-4][\)|\.]\s*/, ''));
+        }
+      }
+      if (current) soal.push(current);
+      return soal;
+    }
 
-    const soalList = [];
-    let current = 0;
+    function tampilkanSoal() {
+      const s = soalList[currentIdx];
+      if (!s) return;
+      document.getElementById("nomor").value = s.nomor || currentIdx + 1;
+      document.getElementById("pertanyaan").value = s.pertanyaan || '';
+      document.getElementById("pilihan1").value = s.opsi?.[0] || '';
+      document.getElementById("pilihan2").value = s.opsi?.[1] || '';
+      document.getElementById("pilihan3").value = s.opsi?.[2] || '';
+      document.getElementById("pilihan4").value = s.opsi?.[3] || '';
+    }
 
-    document.getElementById("prevBtn").onclick = () => {
-      if (current > 0) current--;
-      loadSoal(current);
-    };
-    document.getElementById("nextBtn").onclick = () => {
-      if (current < soalList.length - 1) current++;
-      loadSoal(current);
-    };
-
-    document.getElementById("soalForm").onsubmit = async function (e) {
-      e.preventDefault();
-      const soal = {
+    function simpanSoal() {
+      soalList[currentIdx] = {
         nomor: parseInt(document.getElementById("nomor").value),
         pertanyaan: document.getElementById("pertanyaan").value,
         opsi: [
-          document.getElementById("opsi1").value,
-          document.getElementById("opsi2").value,
-          document.getElementById("opsi3").value,
-          document.getElementById("opsi4").value,
-        ],
-        gambar: null,
-        audio: null,
+          document.getElementById("pilihan1").value,
+          document.getElementById("pilihan2").value,
+          document.getElementById("pilihan3").value,
+          document.getElementById("pilihan4").value,
+        ]
       };
-      soalList[current] = soal;
-      await supabase.from("soal").insert([soal]);
-      updateGrid();
-    };
+      tampilkanGrid();
+    }
 
-    function updateGrid() {
-      const grid = document.getElementById("gridSoal");
-      grid.innerHTML = "";
+    function tampilkanGrid() {
+      const container = document.getElementById("gridSoal");
+      container.innerHTML = '';
       soalList.forEach((s, i) => {
-        const btn = document.createElement("button");
-        btn.textContent = s.nomor || i + 1;
-        btn.className = `px-2 py-1 rounded ${s.pertanyaan ? 'bg-green-500 text-white' : 'bg-red-400 text-white'}`;
-        btn.onclick = () => {
-          current = i;
-          loadSoal(i);
-        };
-        grid.appendChild(btn);
+        const btn = document.createElement('button');
+        btn.textContent = s.nomor;
+        btn.style.background = i === currentIdx ? '#007bff' : '#ccc';
+        btn.onclick = () => { currentIdx = i; tampilkanSoal(); tampilkanGrid(); };
+        container.appendChild(btn);
       });
     }
 
-    function loadSoal(i) {
-      const s = soalList[i] || {};
-      document.getElementById("nomor").value = s.nomor || "";
-      document.getElementById("pertanyaan").value = s.pertanyaan || "";
-      document.getElementById("opsi1").value = s.opsi?.[0] || "";
+    function nextSoal() {
+      simpanSoal();
+      if (currentIdx < soalList.length - 1) {
+        currentIdx++;
+        tampilkanSoal();
+        tampilkanGrid();
+      }
+    }
+
+    function prevSoal() {
+      simpanSoal();
+      if (currentIdx > 0) {
+        currentIdx--;
+        tampilkanSoal();
+        tampilkanGrid();
+      }
+    }
+
+    function downloadJSON() {
+      const jsonStr = JSON.stringify(soalList, null, 2);
+      const blob = new Blob([jsonStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "soal.json";
+      a.click();
+    }
+  </script></body>
+</html>      document.getElementById("opsi1").value = s.opsi?.[0] || "";
       document.getElementById("opsi2").value = s.opsi?.[1] || "";
       document.getElementById("opsi3").value = s.opsi?.[2] || "";
       document.getElementById("opsi4").value = s.opsi?.[3] || "";
