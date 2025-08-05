@@ -1,4 +1,5 @@
-<!DOCTYPE html><html lang="id">
+<!DOCTYPE html>
+<html lang="id">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -13,13 +14,22 @@
   </style>
 </head>
 <body>
-  <h1>📘 EPS-TOPIK Builder</h1>  <p>📄 Upload gambar soal per nomor:</p>
-  <input type="file" id="uploadGambar" multiple accept="image/*" /><br /><br />  <p>🔊 Upload audio gabungan (21-40):</p>
+  <h1>📘 EPS-TOPIK Builder</h1>
+
+  <p>📄 Upload gambar soal per nomor:</p>
+  <input type="file" id="uploadGambar" multiple accept="image/*" /><br /><br />
+
+  <p>🔊 Upload audio gabungan (21-40):</p>
   <input type="file" id="uploadAudioGabungan" accept="audio/*" /><br />
   <label>Dari soal:</label>
   <input type="number" id="audioStart" min="1" style="width:60px;" />
   <label>Sampai:</label>
-  <input type="number" id="audioEnd" min="1" style="width:60px;" /><br /><br />  <div id="soalContainer"></div><button id="saveSupabase">💾 Simpan ke Supabase</button> <button id="exportJson">📦 Ekspor JSON</button>
+  <input type="number" id="audioEnd" min="1" style="width:60px;" /><br /><br />
+
+  <div id="soalContainer"></div>
+
+  <button id="saveSupabase">💾 Simpan ke Supabase</button>
+  <button id="exportJson">📦 Ekspor JSON</button>
 
   <script type="module">
     import { uploadAudioGabungan, supabase, simpanSoalToDatabase } from './eps-topik-builder.js';
@@ -30,6 +40,7 @@
     document.getElementById('uploadGambar').addEventListener('change', (e) => {
       const files = Array.from(e.target.files).sort();
       soalList.length = 0;
+      soalContainer.innerHTML = '';
       files.forEach((file, i) => {
         const nomor = i + 1;
         const soal = { nomor, gambar: '', pertanyaan: '', opsi: ['', '', '', ''] };
@@ -83,5 +94,6 @@
       a.download = 'soal.json';
       a.click();
     };
-  </script></body>
+  </script>
+</body>
 </html>
