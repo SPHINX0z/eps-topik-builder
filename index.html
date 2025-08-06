@@ -1,5 +1,4 @@
-<!DOCTYPE html>
-<html lang="id">
+<!DOCTYPE html><html lang="id">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -14,22 +13,15 @@
   </style>
 </head>
 <body>
-  <h1>📘 EPS-TOPIK Builder</h1>
+  <h1>📘 EPS-TOPIK Builder</h1><label><b>📛 Nama Set Soal (misal TO1):</b></label> <input type="text" id="setSoal" placeholder="Contoh: TO1" /><br><br>
 
   <p>📄 Upload gambar soal per nomor:</p>
-  <input type="file" id="uploadGambar" multiple accept="image/*" /><br /><br />
-
-  <p>🔊 Upload audio gabungan (21-40):</p>
+  <input type="file" id="uploadGambar" multiple accept="image/*" /><br /><br />  <p>🔊 Upload audio gabungan (21-40):</p>
   <input type="file" id="uploadAudioGabungan" accept="audio/*" /><br />
   <label>Dari soal:</label>
   <input type="number" id="audioStart" min="1" style="width:60px;" />
   <label>Sampai:</label>
-  <input type="number" id="audioEnd" min="1" style="width:60px;" /><br /><br />
-
-  <div id="soalContainer"></div>
-
-  <button id="saveSupabase">💾 Simpan ke Supabase</button>
-  <button id="exportJson">📦 Ekspor JSON</button>
+  <input type="number" id="audioEnd" min="1" style="width:60px;" /><br /><br />  <div id="soalContainer"></div><button id="saveSupabase">💾 Simpan ke Supabase</button> <button id="exportJson">📦 Ekspor JSON</button>
 
   <script type="module">
     import { uploadAudioGabungan, supabase, simpanSoalToDatabase } from './eps-topik-builder.js';
@@ -84,16 +76,24 @@
     }
 
     document.getElementById('saveSupabase').onclick = () => {
-      simpanSoalToDatabase(soalList);
+      const setId = document.getElementById('setSoal').value.trim();
+      if (!setId) return alert('⚠️ Masukkan nama set soal terlebih dahulu');
+      simpanSoalToDatabase(soalList, setId);
     };
 
     document.getElementById('exportJson').onclick = () => {
-      const blob = new Blob([JSON.stringify(soalList, null, 2)], { type: 'application/json' });
+      const hasil = soalList.map(s => ({
+        nomor: s.nomor,
+        pertanyaan: s.pertanyaan,
+        opsi: s.opsi,
+        gambar: s.gambar,
+        audio_gabungan: s.audio_gabungan || null
+      }));
+      const blob = new Blob([JSON.stringify(hasil, null, 2)], { type: 'application/json' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = 'soal.json';
       a.click();
     };
-  </script>
-</body>
+  </script></body>
 </html>
