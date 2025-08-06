@@ -1,0 +1,88 @@
+<!DOCTYPE html><html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ujian EPS-TOPIK</title>
+  <style>
+    body { font-family: sans-serif; padding: 1rem; background: #f2f2f2; }
+    .soal { background: #fff; padding: 1rem; margin-bottom: 1rem; border-radius: 10px; }
+    .opsi { display: flex; flex-direction: column; }
+    .opsi label { margin-bottom: 0.5rem; }
+    .gambar { max-width: 100%; margin-top: 1rem; }
+    .navigator { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 1rem; }
+    .navigator button { width: 40px; height: 40px; }
+    .navigator button.answered { background-color: lightgreen; }
+  </style>
+</head>
+<body>
+  <h2>📝 Ujian EPS-TOPIK</h2>
+  <div id="soalBox"></div>
+  <div class="navigator" id="navBox"></div>
+  <button onclick="prev()">⬅️ Sebelumnya</button>
+  <button onclick="next()">➡️ Selanjutnya</button>  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+    const supabase = createClient(
+      'https://eaiypixnjiwqkxaovgmn.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVhaXlwaXhuaml3cWt4YW92Z21uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzODkwNzIsImV4cCI6MjA2OTk2NTA3Mn0.9QexOt0Uunv_n3KFBW5RKTBr9dJTSq8k84gBk1WUr2w'
+    );
+
+    const params = new URLSearchParams(window.location.search);
+    const set = params.get('set');
+    if (!set) document.body.innerHTML = '<h3>⚠️ Tidak ada set soal.</h3>';
+
+    const { data: soalData } = await supabase.from('soal').select('*').eq('set_id', set).order('nomor');
+    let jawaban = new Array(soalData.length).fill(null);
+    let index = 0;
+
+    function renderSoal() {
+      const soal = soalData[index];
+      const container = document.getElementById('soalBox');
+      container.innerHTML = '';
+      const div = document.createElement('div');
+      div.className = 'soal';
+
+      div.innerHTML = `<h3>${soal.nomor}. Soal</h3>`;
+      if (soal.pertanyaan) div.innerHTML += `<p>${soal.pertanyaan}</p>`;
+      if (soal.gambar) div.innerHTML += `<img src="${soal.gambar}" class="gambar" />`;
+      if (soal.audio_gabungan) div.innerHTML += `<audio controls src="${soal.audio_gabungan}" style="width:100%; margin-top:10px;"></audio>`;
+
+      const opsiDiv = document.createElement('div');
+      opsiDiv.className = 'opsi';
+      soal.opsi.forEach((o, i) => {
+        const label = document.createElement('label');
+        label.innerHTML = `<input type="radio" name="opsi" value="${i+1}" ${jawaban[index] == i+1 ? 'checked' : ''}/> ${i+1}) ${o}`;
+        label.querySelector('input').onchange = () => {
+          jawaban[index] = i+1;
+          updateNavigator();
+        };
+        opsiDiv.appendChild(label);
+      });
+      div.appendChild(opsiDiv);
+      container.appendChild(div);
+    }
+
+    function updateNavigator() {
+      const nav = document.getElementById('navBox');
+      nav.innerHTML = '';
+      soalData.forEach((s, i) => {
+        const btn = document.createElement('button');
+        btn.textContent = s.nomor;
+        if (jawaban[i]) btn.classList.add('answered');
+        btn.onclick = () => { index = i; renderSoal(); };
+        nav.appendChild(btn);
+      });
+    }
+
+    window.prev = () => {
+      if (index > 0) index--;
+      renderSoal();
+    };
+    window.next = () => {
+      if (index < soalData.length - 1) index++;
+      renderSoal();
+    };
+
+    renderSoal();
+    updateNavigator();
+  </script></body>
+</html>
